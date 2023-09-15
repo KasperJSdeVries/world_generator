@@ -1,22 +1,23 @@
 #include "window.h"
+#include "module.h"
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 
-struct window_state {
+typedef struct window_state {
 	GLFWwindow *window;
-};
+} window_state;
 
-b8 window_create(window_state **state, int window_width, int window_height,
-				 const char *window_name) {
-	*state = malloc(sizeof(struct window_state));
+b8 window_create(module_state *module_state, int window_width,
+				 int window_height, const char *window_name) {
+	module_state->internal_state = malloc(sizeof(struct window_state));
+	window_state *state = (window_state *)module_state->internal_state;
 
 	if (!glfwInit()) {
 		return false;
 	}
 
-	(*state)->window =
-		glfwCreateWindow(720, 480, "World Generator", NULL, NULL);
-	if (!(*state)->window) {
+	state->window = glfwCreateWindow(720, 480, "World Generator", NULL, NULL);
+	if (!state->window) {
 		glfwTerminate();
 		return false;
 	}
@@ -24,17 +25,20 @@ b8 window_create(window_state **state, int window_width, int window_height,
 	return true;
 }
 
-void window_destroy(window_state *state) {
+void window_destroy(module_state module_state) {
+	window_state *state = (window_state *)module_state.internal_state;
 	glfwDestroyWindow(state->window);
 
 	glfwTerminate();
 }
 
-b8 window_should_close(window_state *state) {
+b8 window_should_close(module_state module_state) {
+	window_state *state = (window_state *)module_state.internal_state;
 	return glfwWindowShouldClose(state->window);
 }
 
-void window_update(window_state *state) {
+void window_update(module_state module_state) {
+	window_state *state = (window_state *)module_state.internal_state;
 	glfwPollEvents();
 
 	glfwSwapBuffers(state->window);
