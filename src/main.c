@@ -1,26 +1,21 @@
-#include <GLFW/glfw3.h>
+#include "types.h"
+#include "window.h"
 #include <stdlib.h>
 
-typedef struct window {
-	GLFWwindow *window;
-} window;
+typedef struct state {
+	window_state *window;
+} state;
 
 int main() {
-	window *window = malloc(sizeof(struct window));
+	state *state = malloc(sizeof(struct state));
 
-	if (!glfwInit()) {
-		return 1;
+	window_create(&state->window, 720, 480, "World Generator");
+
+	while (!window_should_close(state->window)) {
+		window_update(state->window);
 	}
 
-	window->window = glfwCreateWindow(720, 480, "World Generator", NULL, NULL);
+	window_destroy(state->window);
 
-	while (!glfwWindowShouldClose(window->window)) {
-		glfwPollEvents();
-
-		glfwSwapBuffers(window->window);
-	}
-
-	glfwDestroyWindow(window->window);
-
-	glfwTerminate();
+	free(state);
 }

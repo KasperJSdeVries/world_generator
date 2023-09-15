@@ -4,7 +4,10 @@ project(world_generator C)
 set(CMAKE_C_VERSION 11)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
-add_executable(${PROJECT_NAME} src/main.c)
+add_executable(${PROJECT_NAME} 
+    src/main.c
+    src/window.c
+)
 
 find_package(Vulkan REQUIRED)
 
