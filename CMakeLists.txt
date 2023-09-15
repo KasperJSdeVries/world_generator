@@ -6,7 +6,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 add_executable(${PROJECT_NAME}
         src/main.c
-        src/window.c
+        src/platform/glfw/glfw_window.c
+        src/platform/glfw/glfw.c
 )
 
 find_package(Vulkan REQUIRED)

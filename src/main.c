@@ -1,17 +1,22 @@
-#include "window.h"
+#include "platform/platform_window.h"
 
 typedef struct state {
-	module_state window;
+	platform_state platform;
 } state;
 
 int main() {
 	state state = {};
 
-	window_create(&state.window, 720, 480, "World Generator");
-
-	while (!window_should_close(state.window)) {
-		window_update(state.window);
+	if (!platform_init(&state.platform)) {
+		return 1;
 	}
 
-	window_destroy(state.window);
+	window_create(state.platform, 720, 480, "World Generator");
+
+	while (!window_should_close(state.platform)) {
+		window_update(state.platform);
+	}
+
+	window_destroy(state.platform);
+	platform_terminate(&state.platform);
 }
