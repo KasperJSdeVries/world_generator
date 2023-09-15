@@ -1,7 +1,7 @@
 #include "module.h"
 #include "types.h"
 
-typedef struct window_state window_state;
+typedef struct internal_state internal_state;
 
 b8 window_create(module_state *state, int window_width, int window_height,
 				 const char *window_name);
