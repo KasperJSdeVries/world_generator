@@ -1,2 +1,7 @@
+## Build Folders
 build/
+cmake-build-*/
 .cache/
+
+## IDEs
+.idea/
