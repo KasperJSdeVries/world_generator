@@ -8,7 +8,12 @@ add_executable(${PROJECT_NAME}
         src/main.c
         src/platform/glfw/glfw_window.c
         src/platform/glfw/glfw.c
+        src/containers/darray.c
+        src/renderer/renderer.c
+        src/renderer/vulkan/vulkan_backend.c
 )
+
+target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 find_package(Vulkan REQUIRED)
 

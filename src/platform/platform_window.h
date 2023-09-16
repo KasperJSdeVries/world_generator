@@ -1,4 +1,4 @@
-#include "../types.h"
+#include "types.h"
 #include "platform.h"
 
 b8 window_create(platform_state platform_state, int window_width, int window_height,
