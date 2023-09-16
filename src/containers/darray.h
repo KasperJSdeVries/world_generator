@@ -54,5 +54,4 @@ void _darray_pop_at(void *array, u64 index, void *out_value);
 
 #define darray_stride(array) _darray_field_get(array, DARRAY_STRIDE)
 
-
 #endif // WORLD_GENERATOR_DARRAY_H
