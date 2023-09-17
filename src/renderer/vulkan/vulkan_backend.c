@@ -147,7 +147,8 @@ void create_debug_messenger(VkInstance instance,
 	PFN_vkCreateDebugUtilsMessengerEXT create_function =
 		(PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
 			instance, "vkCreateDebugUtilsMessengerEXT");
-	if (create_function(instance, &create_info, NULL, out_debug_messenger)!= VK_SUCCESS) {
+	if (create_function(instance, &create_info, NULL, out_debug_messenger) !=
+		VK_SUCCESS) {
 		fprintf(stderr, "Failed to create Debug Messenger!\n");
 	}
 }
