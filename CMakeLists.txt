@@ -11,7 +11,10 @@ add_executable(${PROJECT_NAME}
         src/containers/darray.c
         src/renderer/renderer.c
         src/renderer/vulkan/vulkan_backend.c
+        src/platform/glfw/glfw_vulkan.c
 )
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 
