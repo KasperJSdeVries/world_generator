@@ -9,8 +9,7 @@
 
 b8 create_instance(const char *application_name, VkInstance *out_instance);
 #if defined(_DEBUG)
-void create_debug_messenger(VkInstance instance,
-							VkDebugUtilsMessengerEXT *out_debug_messenger);
+void create_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *out_debug_messenger);
 #endif
 b8 pick_physical_device(VkInstance instance, VkSurfaceKHR surface,
 						VkPhysicalDevice *out_physical_device,
@@ -49,8 +48,7 @@ void backend_shutdown(void *renderer_context) {
 	PFN_vkDestroyDebugUtilsMessengerEXT destroy_debug_messenger_function =
 		(PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
 			context->instance, "vkDestroyDebugUtilsMessengerEXT");
-	destroy_debug_messenger_function(context->instance,
-									 context->debug_messenger, NULL);
+	destroy_debug_messenger_function(context->instance, context->debug_messenger, NULL);
 #endif
 	vkDestroyInstance(context->instance, NULL);
 	free(context);
@@ -89,23 +87,18 @@ b8 create_instance(const char *application_name, VkInstance *out_instance) {
 
 #if defined(_DEBUG)
 	required_validation_layer_names = darray_create(const char *);
-	darray_push(required_validation_layer_names,
-				&"VK_LAYER_KHRONOS_validation");
-	required_validation_layer_count =
-		darray_length(required_validation_layer_names);
+	darray_push(required_validation_layer_names, &"VK_LAYER_KHRONOS_validation");
+	required_validation_layer_count = darray_length(required_validation_layer_names);
 
 	u32 available_layer_count = 0;
 	vkEnumerateInstanceLayerProperties(&available_layer_count, NULL);
-	VkLayerProperties *available_layers =
-		darray_reserve(VkLayerProperties, available_layer_count);
-	vkEnumerateInstanceLayerProperties(&available_layer_count,
-									   available_layers);
+	VkLayerProperties *available_layers = darray_reserve(VkLayerProperties, available_layer_count);
+	vkEnumerateInstanceLayerProperties(&available_layer_count, available_layers);
 
 	for (u32 i = 0; i < required_validation_layer_count; ++i) {
 		b8 found = false;
 		for (u32 j = 0; j < available_layer_count; ++j) {
-			if (strcmp(required_validation_layer_names[i],
-					   available_layers[j].layerName) == 0) {
+			if (strcmp(required_validation_layer_names[i], available_layers[j].layerName) == 0) {
 				found = true;
 				break;
 			}
@@ -132,8 +125,7 @@ b8 create_instance(const char *application_name, VkInstance *out_instance) {
 VKAPI_ATTR VkBool32 VKAPI_CALL
 vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
 				  VkDebugUtilsMessageTypeFlagBitsEXT message_types,
-				  const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
-				  void *user_data) {
+				  const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data) {
 	switch (message_severity) {
 	default:
 		printf("%s\n", callback_data->pMessage);
@@ -145,8 +137,7 @@ vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
 	return VK_FALSE;
 }
 
-void create_debug_messenger(VkInstance instance,
-							VkDebugUtilsMessengerEXT *out_debug_messenger) {
+void create_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *out_debug_messenger) {
 	u32 log_severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
 					   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 	VkDebugUtilsMessengerCreateInfoEXT create_info = {};
@@ -159,10 +150,9 @@ void create_debug_messenger(VkInstance instance,
 	create_info.pUserData = 0;
 
 	PFN_vkCreateDebugUtilsMessengerEXT create_function =
-		(PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-			instance, "vkCreateDebugUtilsMessengerEXT");
-	if (create_function(instance, &create_info, NULL, out_debug_messenger) !=
-		VK_SUCCESS) {
+		(PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,
+																  "vkCreateDebugUtilsMessengerEXT");
+	if (create_function(instance, &create_info, NULL, out_debug_messenger) != VK_SUCCESS) {
 		fprintf(stderr, "Failed to create Debug Messenger!\n");
 	}
 }
@@ -310,7 +300,7 @@ b8 physical_device_meets_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
 											 available_extensions);
 		// TODO: Make configurable
 		const char **required_extensions = darray_create(const char *);
-		//darray_push(required_extensions, &VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+		// darray_push(required_extensions, &VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
 		darray_push(required_extensions, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
 		u32 required_extension_count = darray_length(required_extensions);
