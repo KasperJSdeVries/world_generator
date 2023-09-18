@@ -6,14 +6,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vulkan/vulkan_core.h>
 
 b8 create_instance(const char *application_name, VkInstance *out_instance);
 #if defined(_DEBUG)
 void create_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *out_debug_messenger);
 #endif
 b8 pick_physical_device(VkInstance instance, VkSurfaceKHR surface,
-						VkPhysicalDevice *out_physical_device,
+						VkPhysicalDevice *out_physical_device, queue_family_info *out_queue_info,
 						swapchain_support_info *swapchain_info);
+b8 create_device(VkPhysicalDevice physical_device, queue_family_info queue_info,
+				 VkDevice *out_device);
 
 b8 backend_initialize(platform_state platform_state, void **out_renderer_context) {
 	*out_renderer_context = malloc(sizeof(vulkan_context));
@@ -31,8 +34,13 @@ b8 backend_initialize(platform_state platform_state, void **out_renderer_context
 		return false;
 	}
 
+	queue_family_info queue_info;
 	if (!pick_physical_device(context->instance, context->surface, &context->physical_device,
-							  &context->swapchain_info)) {
+							  &queue_info, &context->swapchain_info)) {
+		return false;
+	}
+
+	if (!create_device(context->physical_device, queue_info, &context->device)) {
 		return false;
 	}
 
@@ -41,6 +49,8 @@ b8 backend_initialize(platform_state platform_state, void **out_renderer_context
 
 void backend_shutdown(void *renderer_context) {
 	vulkan_context *context = renderer_context;
+
+	vkDestroyDevice(context->device, NULL);
 
 	vkDestroySurfaceKHR(context->instance, context->surface, NULL);
 
@@ -165,7 +175,7 @@ b8 physical_device_meets_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
 									  swapchain_support_info *out_swapchain_support);
 
 b8 pick_physical_device(VkInstance instance, VkSurfaceKHR surface,
-						VkPhysicalDevice *out_physical_device,
+						VkPhysicalDevice *out_physical_device, queue_family_info *out_queue_info,
 						swapchain_support_info *swapchain_info) {
 	u32 device_count;
 	vkEnumeratePhysicalDevices(instance, &device_count, NULL);
@@ -181,11 +191,13 @@ b8 pick_physical_device(VkInstance instance, VkSurfaceKHR surface,
 		VkPhysicalDeviceMemoryProperties memory_properties;
 		vkGetPhysicalDeviceMemoryProperties(physical_devices[i], &memory_properties);
 
-		queue_family_info queue_info = {};
 		b8 result = physical_device_meets_requirements(physical_devices[i], surface, &properties,
-													   &features, &queue_info, swapchain_info);
+													   &features, out_queue_info, swapchain_info);
 		if (result) {
 			*out_physical_device = physical_devices[i];
+
+			printf("Using: %s\n", properties.deviceName);
+
 			return true;
 		}
 	}
@@ -300,7 +312,7 @@ b8 physical_device_meets_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
 											 available_extensions);
 		// TODO: Make configurable
 		const char **required_extensions = darray_create(const char *);
-		// darray_push(required_extensions, &VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+		darray_push(required_extensions, &VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
 		darray_push(required_extensions, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
 		u32 required_extension_count = darray_length(required_extensions);
@@ -324,6 +336,70 @@ b8 physical_device_meets_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
 	}
 
 	if (!features->samplerAnisotropy) {
+		return false;
+	}
+
+	return true;
+}
+
+b8 create_device(VkPhysicalDevice physical_device, queue_family_info queue_info,
+				 VkDevice *out_device) {
+
+	b8 present_shares_graphics_queue =
+		queue_info.graphics_family_index == queue_info.present_family_index;
+	b8 transfer_shares_graphics_queue =
+		queue_info.graphics_family_index == queue_info.transfer_family_index;
+	u32 index_count = 1;
+
+	if (!present_shares_graphics_queue) {
+		index_count++;
+	}
+	if (!transfer_shares_graphics_queue) {
+		index_count++;
+	}
+
+	u32 indices[index_count];
+	u8 index = 0;
+	indices[index++] = queue_info.graphics_family_index;
+	if (!present_shares_graphics_queue) {
+		indices[index++] = queue_info.present_family_index;
+	}
+	if (!transfer_shares_graphics_queue) {
+		indices[index++] = queue_info.transfer_family_index;
+	}
+
+	VkDeviceQueueCreateInfo queue_create_infos[index_count];
+	for (u32 i = 0; i < index_count; ++i) {
+		queue_create_infos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queue_create_infos[i].queueFamilyIndex = indices[i];
+		queue_create_infos[i].queueCount = 1;
+		if (indices[i] == queue_info.graphics_family_index) {
+			queue_create_infos[i].queueCount = 2;
+		}
+		queue_create_infos[i].flags = 0;
+		queue_create_infos[i].pNext = NULL;
+		f32 queue_priority = 1.0f;
+		queue_create_infos[i].pQueuePriorities = &queue_priority;
+	}
+
+	// TODO: Make configurable
+	VkPhysicalDeviceFeatures device_features = {};
+	device_features.samplerAnisotropy = VK_TRUE;
+
+	VkDeviceCreateInfo create_info = {};
+	create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	create_info.queueCreateInfoCount = index_count;
+	create_info.pQueueCreateInfos = queue_create_infos;
+	create_info.pEnabledFeatures = &device_features;
+	create_info.enabledExtensionCount = 1;
+	const char *extension_names = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+	create_info.ppEnabledExtensionNames = &extension_names;
+
+	// Deprecated
+	create_info.enabledLayerCount = 0;
+	create_info.ppEnabledLayerNames = NULL;
+
+	if (vkCreateDevice(physical_device, &create_info, NULL, out_device) != VK_SUCCESS) {
 		return false;
 	}
 
