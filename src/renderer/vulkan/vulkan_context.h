@@ -3,20 +3,33 @@
 
 #include <vulkan/vulkan.h>
 
-typedef struct queue_family_info {
-	u32 graphics_family_index;
-	u32 present_family_index;
-	u32 compute_family_index;
-	u32 transfer_family_index;
-} queue_family_info;
-
-typedef struct swapchain_support_info {
+typedef struct vulkan_swapchain_support_info {
 	VkSurfaceCapabilitiesKHR capabilities;
 	u32 format_count;
 	VkSurfaceFormatKHR *formats;
 	u32 present_mode_count;
 	VkPresentModeKHR *present_modes;
-} swapchain_support_info;
+} vulkan_swapchain_support_info;
+
+typedef struct vulkan_device {
+	VkPhysicalDevice physical_device;
+	VkDevice logical_device;
+	vulkan_swapchain_support_info swapchain_support;
+
+	i32 graphics_queue_index;
+	i32 compute_queue_index;
+	i32 present_queue_index;
+	i32 transfer_queue_index;
+
+	VkQueue graphics_queue;
+	VkQueue compute_queue;
+	VkQueue present_queue;
+	VkQueue transfer_queue;
+
+	VkPhysicalDeviceProperties properties;
+	VkPhysicalDeviceFeatures features;
+	VkPhysicalDeviceMemoryProperties memory;
+} vulkan_device;
 
 typedef struct vulkan_context {
 	VkInstance instance;
@@ -27,10 +40,7 @@ typedef struct vulkan_context {
 
 	VkSurfaceKHR surface;
 
-	swapchain_support_info swapchain_info;
-
-	VkPhysicalDevice physical_device;
-	VkDevice device;
+	vulkan_device device;
 } vulkan_context;
 
 #endif // WORLD_GENERATOR_VULKAN_CONTEXT_H
