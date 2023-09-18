@@ -12,8 +12,11 @@ b8 create_instance(const char *application_name, VkInstance *out_instance);
 void create_debug_messenger(VkInstance instance,
 							VkDebugUtilsMessengerEXT *out_debug_messenger);
 #endif
+b8 pick_physical_device(VkInstance instance, VkSurfaceKHR surface,
+						VkPhysicalDevice *out_physical_device,
+						swapchain_support_info *swapchain_info);
 
-b8 backend_initialize(void **out_renderer_context) {
+b8 backend_initialize(platform_state platform_state, void **out_renderer_context) {
 	*out_renderer_context = malloc(sizeof(vulkan_context));
 	vulkan_context *context = *out_renderer_context;
 
@@ -25,11 +28,22 @@ b8 backend_initialize(void **out_renderer_context) {
 	create_debug_messenger(context->instance, &context->debug_messenger);
 #endif
 
+	if (!platform_get_surface(context->instance, platform_state, &context->surface)) {
+		return false;
+	}
+
+	if (!pick_physical_device(context->instance, context->surface, &context->physical_device,
+							  &context->swapchain_info)) {
+		return false;
+	}
+
 	return true;
 }
 
 void backend_shutdown(void *renderer_context) {
 	vulkan_context *context = renderer_context;
+
+	vkDestroySurfaceKHR(context->instance, context->surface, NULL);
 
 #if defined(_DEBUG)
 	PFN_vkDestroyDebugUtilsMessengerEXT destroy_debug_messenger_function =
@@ -153,3 +167,175 @@ void create_debug_messenger(VkInstance instance,
 	}
 }
 #endif
+
+b8 physical_device_meets_requirements(VkPhysicalDevice device, VkSurfaceKHR surface,
+									  const VkPhysicalDeviceProperties *properties,
+									  const VkPhysicalDeviceFeatures *features,
+									  queue_family_info *out_queue_info,
+									  swapchain_support_info *out_swapchain_support);
+
+b8 pick_physical_device(VkInstance instance, VkSurfaceKHR surface,
+						VkPhysicalDevice *out_physical_device,
+						swapchain_support_info *swapchain_info) {
+	u32 device_count;
+	vkEnumeratePhysicalDevices(instance, &device_count, NULL);
+	VkPhysicalDevice physical_devices[device_count];
+	vkEnumeratePhysicalDevices(instance, &device_count, physical_devices);
+	for (u32 i = 0; i < device_count; ++i) {
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
+
+		VkPhysicalDeviceFeatures features;
+		vkGetPhysicalDeviceFeatures(physical_devices[i], &features);
+
+		VkPhysicalDeviceMemoryProperties memory_properties;
+		vkGetPhysicalDeviceMemoryProperties(physical_devices[i], &memory_properties);
+
+		queue_family_info queue_info = {};
+		b8 result = physical_device_meets_requirements(physical_devices[i], surface, &properties,
+													   &features, &queue_info, swapchain_info);
+		if (result) {
+			*out_physical_device = physical_devices[i];
+			return true;
+		}
+	}
+	return false;
+}
+
+void query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface,
+							 swapchain_support_info *out_swapchain_support) {
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface,
+											  &out_swapchain_support->capabilities);
+
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out_swapchain_support->format_count, 0);
+	if (out_swapchain_support->format_count != 0) {
+		if (!out_swapchain_support->formats) {
+			out_swapchain_support->formats =
+				malloc(sizeof(VkSurfaceFormatKHR) * out_swapchain_support->format_count);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface,
+												 &out_swapchain_support->format_count,
+												 out_swapchain_support->formats);
+		}
+	}
+
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
+											  &out_swapchain_support->present_mode_count, 0);
+	if (out_swapchain_support->present_mode_count != 0) {
+		if (!out_swapchain_support->present_modes) {
+			out_swapchain_support->present_modes =
+				malloc(sizeof(VkPresentModeKHR) * out_swapchain_support->format_count);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
+													  &out_swapchain_support->present_mode_count,
+													  out_swapchain_support->present_modes);
+		}
+	}
+}
+
+b8 physical_device_meets_requirements(VkPhysicalDevice device, VkSurfaceKHR surface,
+									  const VkPhysicalDeviceProperties *properties,
+									  const VkPhysicalDeviceFeatures *features,
+									  queue_family_info *out_queue_info,
+									  swapchain_support_info *out_swapchain_support) {
+
+	out_queue_info->graphics_family_index = -1;
+	out_queue_info->present_family_index = -1;
+	out_queue_info->compute_family_index = -1;
+	out_queue_info->transfer_family_index = -1;
+
+	switch (properties->deviceType) {
+	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+		break;
+	default:
+		return false;
+	}
+
+	u32 queue_family_count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, NULL);
+	VkQueueFamilyProperties queue_families[queue_family_count];
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
+	u8 min_transfer_score = 255;
+	for (int i = 0; i < queue_family_count; ++i) {
+		u8 current_transfer_score = 0;
+
+		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			out_queue_info->graphics_family_index = i;
+			++current_transfer_score;
+		}
+
+		if (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
+			out_queue_info->compute_family_index = i;
+			++current_transfer_score;
+		}
+
+		if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+			if (current_transfer_score <= min_transfer_score) {
+				min_transfer_score = current_transfer_score;
+				out_queue_info->transfer_family_index = i;
+			}
+		}
+
+		VkBool32 supports_present = VK_FALSE;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supports_present);
+		if (supports_present) {
+			out_queue_info->present_family_index = i;
+		}
+	}
+
+	if (!((out_queue_info->graphics_family_index != -1) &&
+		  (out_queue_info->compute_family_index != -1) &&
+		  (out_queue_info->transfer_family_index != -1) &&
+		  (out_queue_info->present_family_index != -1))) {
+		return false;
+	}
+
+	query_swapchain_support(device, surface, out_swapchain_support);
+
+	if (out_swapchain_support->format_count < 1 || out_swapchain_support->present_mode_count < 1) {
+		if (out_swapchain_support->formats) {
+			free(out_swapchain_support->formats);
+		}
+		if (out_swapchain_support->present_modes) {
+			free(out_swapchain_support->present_modes);
+		}
+		return false;
+	}
+
+	u32 available_extension_count = 0;
+	VkExtensionProperties *available_extensions = NULL;
+	vkEnumerateDeviceExtensionProperties(device, NULL, &available_extension_count, NULL);
+	if (available_extension_count != 0) {
+		available_extensions = malloc(sizeof(VkExtensionProperties) * available_extension_count);
+		vkEnumerateDeviceExtensionProperties(device, NULL, &available_extension_count,
+											 available_extensions);
+		// TODO: Make configurable
+		const char **required_extensions = darray_create(const char *);
+		//darray_push(required_extensions, &VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+		darray_push(required_extensions, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+		u32 required_extension_count = darray_length(required_extensions);
+		for (u32 i = 0; i < required_extension_count; ++i) {
+			b8 found = false;
+			for (u32 j = 0; j < available_extension_count; ++j) {
+				if (strcmp(required_extensions[i], available_extensions[j].extensionName) == 0) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				darray_destroy(required_extensions);
+				free(available_extensions);
+				return false;
+			}
+		}
+
+		darray_destroy(required_extensions);
+		free(available_extensions);
+	}
+
+	if (!features->samplerAnisotropy) {
+		return false;
+	}
+
+	return true;
+}

@@ -16,7 +16,7 @@ int main() {
 
 	window_create(state.platform, 720, 480, "World Generator");
 
-	if (!renderer_initialize(&state.renderer)) {
+	if (!renderer_initialize(state.platform, &state.renderer)) {
 		window_destroy(state.platform);
 		platform_terminate(&state.platform);
 		return 1;

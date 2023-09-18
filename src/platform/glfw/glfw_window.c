@@ -11,6 +11,7 @@ b8 window_create(platform_state platform_state, int window_width,
 		return false;
 	}
 
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	state->window =
 		glfwCreateWindow(window_width, window_height, window_name, NULL, NULL);
 	if (!state->window) {
