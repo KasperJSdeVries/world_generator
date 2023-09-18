@@ -28,18 +28,18 @@ void _darray_pop_at(void *array, u64 index, void *out_value);
 
 #define darray_destroy(array) _darray_destroy(array)
 
-#define darray_push(array, value)                                                                  \
-	{                                                                                              \
-		typeof(value) temp = value;                                                                \
-		array = _darray_push(array, &temp);                                                        \
+#define darray_push(array, value)                                                                                      \
+	{                                                                                                                  \
+		typeof(value) temp = value;                                                                                    \
+		array = _darray_push(array, &temp);                                                                            \
 	}
 
 #define darray_pop(array, out_value) _darray_pop(array, out_value)
 
-#define darray_insert_at(array, index, value)                                                      \
-	{                                                                                              \
-		typeof(value) temp = value;                                                                \
-		_darray_insert_at(array, index, &temp);                                                    \
+#define darray_insert_at(array, index, value)                                                                          \
+	{                                                                                                                  \
+		typeof(value) temp = value;                                                                                    \
+		_darray_insert_at(array, index, &temp);                                                                        \
 	}
 
 #define darray_pop_at(array, index, out_value) _darray_pop_at(array, index, out_value)

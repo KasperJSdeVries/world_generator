@@ -12,8 +12,7 @@ void platform_get_required_extension_names(const char ***names_darray) {
 	}
 }
 
-b8 platform_get_surface(VkInstance instance, platform_state platform_state,
-						VkSurfaceKHR *out_surface) {
+b8 platform_get_surface(VkInstance instance, platform_state platform_state, VkSurfaceKHR *out_surface) {
 	internal_state *state = (internal_state *)platform_state.internal_state;
 	VkResult result = glfwCreateWindowSurface(instance, state->window, NULL, out_surface);
 	if (result != VK_SUCCESS) {
