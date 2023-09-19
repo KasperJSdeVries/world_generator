@@ -1,7 +1,10 @@
 #ifndef WORLD_GENERATOR_VULKAN_PLATFORM_H
 #define WORLD_GENERATOR_VULKAN_PLATFORM_H
 
+#include "platform/platform.h"
 #include "types.h"
+
+#include <vulkan/vulkan.h>
 
 void platform_get_required_extension_names(const char ***names_darray);
 
