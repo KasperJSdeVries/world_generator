@@ -38,7 +38,7 @@ b8 vulkan_swapchain_acquire_next_image_index(
 	u64               timeout_ns,
 	VkSemaphore       image_available_semaphore,
 	VkFence           fence,
-	u32              *out_image_index
+	u32			  *out_image_index
 ) {
 	VkResult result = vkAcquireNextImageKHR(
 		context->device.logical_device,

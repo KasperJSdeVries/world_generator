@@ -4,13 +4,13 @@
 #include <string.h>
 
 void *_darray_create(u64 length, u64 stride) {
-	u64 header_size = DARRAY_FIELD_LENGTH * sizeof(u64);
-	u64 array_size = length * stride;
-	u64 *new_array = malloc(header_size + array_size);
+	u64  header_size = DARRAY_FIELD_LENGTH * sizeof(u64);
+	u64  array_size  = length * stride;
+	u64 *new_array   = malloc(header_size + array_size);
 	memset(new_array, 0, header_size + array_size);
 	new_array[DARRAY_CAPACITY] = length;
-	new_array[DARRAY_LENGTH] = 0;
-	new_array[DARRAY_STRIDE] = stride;
+	new_array[DARRAY_LENGTH]   = 0;
+	new_array[DARRAY_STRIDE]   = stride;
 	return (void *)(new_array + DARRAY_FIELD_LENGTH);
 }
 
@@ -28,14 +28,14 @@ u64 _darray_field_get(void *array, u64 field) {
 }
 
 void _darray_field_set(void *array, u64 field, u64 value) {
-	u64 *header = (u64 *)array - DARRAY_FIELD_LENGTH;
+	u64 *header   = (u64 *)array - DARRAY_FIELD_LENGTH;
 	header[field] = value;
 }
 
 void *_darray_resize(void *array) {
-	u64 length = darray_length(array);
-	u64 stride = darray_stride(array);
-	void *temp = _darray_create((DARRAY_RESIZE_FACTOR * darray_capacity(array)), stride);
+	u64   length = darray_length(array);
+	u64   stride = darray_stride(array);
+	void *temp   = _darray_create((DARRAY_RESIZE_FACTOR * darray_capacity(array)), stride);
 	memcpy(temp, array, length * stride);
 	_darray_field_set(temp, DARRAY_LENGTH, length);
 	_darray_destroy(array);
