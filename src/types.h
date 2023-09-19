@@ -27,4 +27,6 @@ typedef double f64;
 #define true 1;
 #define false 0;
 
+#define CLAMP(value, min, max) (value < min) ? min : ((value > max) ? max : value)
+
 #endif // WORLD_GENERATOR_TYPES_H

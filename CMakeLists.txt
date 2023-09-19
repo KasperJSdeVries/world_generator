@@ -13,6 +13,8 @@ add_executable(${PROJECT_NAME}
         src/renderer/vulkan/vulkan_backend.c
         src/platform/glfw/glfw_vulkan.c
         src/renderer/vulkan/vulkan_device.c
+        src/renderer/vulkan/vulkan_swapchain.c
+        src/renderer/vulkan/vulkan_image.c
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:_DEBUG>)

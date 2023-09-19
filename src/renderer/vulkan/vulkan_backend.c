@@ -1,5 +1,6 @@
 #include "../renderer_backend.h"
 #include "containers/darray.h"
+#include "renderer/vulkan/vulkan_swapchain.h"
 #include "vulkan_context.h"
 #include "vulkan_device.h"
 #include "vulkan_platform.h"
@@ -10,13 +11,18 @@
 #include <vulkan/vulkan_core.h>
 
 b8 create_instance(const char *application_name, VkInstance *out_instance);
+
 #if defined(_DEBUG)
 void create_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *out_debug_messenger);
 #endif
 
+i32 find_memory_index(vulkan_context *context, u32 type_filter, u32 property_flags);
+
 b8 backend_initialize(platform_state platform_state, void **out_renderer_context) {
-	*out_renderer_context = malloc(sizeof(vulkan_context));
+	*out_renderer_context   = malloc(sizeof(vulkan_context));
 	vulkan_context *context = *out_renderer_context;
+
+	context->find_memory_index = find_memory_index;
 
 	if (!create_instance("World Generator", &context->instance)) {
 		return false;
@@ -34,11 +40,17 @@ b8 backend_initialize(platform_state platform_state, void **out_renderer_context
 		return false;
 	}
 
+	vulkan_swapchain_create(
+		context, context->framebuffer_width, context->framebuffer_height, &context->swapchain
+	);
+
 	return true;
 }
 
 void backend_shutdown(void *renderer_context) {
 	vulkan_context *context = renderer_context;
+
+	vulkan_swapchain_destroy(context, &context->swapchain);
 
 	vulkan_device_destroy(&context->device);
 
@@ -46,8 +58,8 @@ void backend_shutdown(void *renderer_context) {
 
 #if defined(_DEBUG)
 	PFN_vkDestroyDebugUtilsMessengerEXT destroy_debug_messenger_function =
-		(PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(context->instance,
-																   "vkDestroyDebugUtilsMessengerEXT");
+		(PFN_vkDestroyDebugUtilsMessengerEXT
+	    )vkGetInstanceProcAddr(context->instance, "vkDestroyDebugUtilsMessengerEXT");
 	destroy_debug_messenger_function(context->instance, context->debug_messenger, NULL);
 #endif
 	vkDestroyInstance(context->instance, NULL);
@@ -55,17 +67,17 @@ void backend_shutdown(void *renderer_context) {
 }
 
 b8 create_instance(const char *application_name, VkInstance *out_instance) {
-	VkApplicationInfo application_info = {};
-	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	application_info.apiVersion = VK_API_VERSION_1_3;
-	application_info.pApplicationName = application_name;
+	VkApplicationInfo application_info  = {};
+	application_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	application_info.apiVersion         = VK_API_VERSION_1_3;
+	application_info.pApplicationName   = application_name;
 	application_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	application_info.pEngineName = "World Generator Engine";
-	application_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	application_info.pEngineName        = "World Generator Engine";
+	application_info.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
 
 	VkInstanceCreateInfo create_info = {};
-	create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	create_info.pApplicationInfo = &application_info;
+	create_info.sType                = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	create_info.pApplicationInfo     = &application_info;
 
 	const char **required_extensions = darray_create(const char *);
 	platform_get_required_extension_names(&required_extensions);
@@ -79,11 +91,11 @@ b8 create_instance(const char *application_name, VkInstance *out_instance) {
 	}
 #endif
 
-	create_info.enabledExtensionCount = darray_length(required_extensions);
+	create_info.enabledExtensionCount   = darray_length(required_extensions);
 	create_info.ppEnabledExtensionNames = required_extensions;
 
 	const char **required_validation_layer_names = 0;
-	u32 required_validation_layer_count = 0;
+	u32          required_validation_layer_count = 0;
 
 #if defined(_DEBUG)
 	required_validation_layer_names = darray_create(const char *);
@@ -105,13 +117,17 @@ b8 create_instance(const char *application_name, VkInstance *out_instance) {
 		}
 
 		if (!found) {
-			fprintf(stderr, "Required validation layer is missing: %s\n", required_validation_layer_names[i]);
+			fprintf(
+				stderr,
+				"Required validation layer is missing: %s\n",
+				required_validation_layer_names[i]
+			);
 			return false;
 		}
 	}
 #endif
 
-	create_info.enabledLayerCount = required_validation_layer_count;
+	create_info.enabledLayerCount   = required_validation_layer_count;
 	create_info.ppEnabledLayerNames = required_validation_layer_names;
 
 	if (vkCreateInstance(&create_info, NULL, out_instance) != VK_SUCCESS) {
@@ -121,36 +137,54 @@ b8 create_instance(const char *application_name, VkInstance *out_instance) {
 }
 
 #if defined(_DEBUG)
-VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-												 VkDebugUtilsMessageTypeFlagBitsEXT message_types,
-												 const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
-												 void *user_data) {
+VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
+	VkDebugUtilsMessageSeverityFlagBitsEXT      message_severity,
+	VkDebugUtilsMessageTypeFlagBitsEXT          message_types,
+	const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
+	void                                       *user_data
+) {
 	switch (message_severity) {
-	default:
-		printf("%s\n", callback_data->pMessage);
-		break;
-	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-		fprintf(stderr, "%s\n", callback_data->pMessage);
-		break;
+		default:
+			printf("%s\n", callback_data->pMessage);
+			break;
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+			fprintf(stderr, "%s\n", callback_data->pMessage);
+			break;
 	}
 	return VK_FALSE;
 }
 
 void create_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *out_debug_messenger) {
-	u32 log_severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+	u32 log_severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
+	                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 	VkDebugUtilsMessengerCreateInfoEXT create_info = {};
-	create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	create_info.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	create_info.messageSeverity = log_severity;
-	create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-							  VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-							  VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+	create_info.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+	                          VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+	                          VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	create_info.pfnUserCallback = vk_debug_callback;
-	create_info.pUserData = 0;
+	create_info.pUserData       = 0;
 
-	PFN_vkCreateDebugUtilsMessengerEXT create_function =
-		(PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	PFN_vkCreateDebugUtilsMessengerEXT create_function = (PFN_vkCreateDebugUtilsMessengerEXT
+	)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (create_function(instance, &create_info, NULL, out_debug_messenger) != VK_SUCCESS) {
 		fprintf(stderr, "Failed to create Debug Messenger!\n");
 	}
 }
 #endif
+
+i32 find_memory_index(vulkan_context *context, u32 type_filter, u32 property_flags) {
+	VkPhysicalDeviceMemoryProperties memory_properties;
+	vkGetPhysicalDeviceMemoryProperties(context->device.physical_device, &memory_properties);
+
+	for (u32 i = 0; i < memory_properties.memoryTypeCount; ++i) {
+		if (type_filter & (1 << i) &&
+		    (memory_properties.memoryTypes[i].propertyFlags & property_flags) == property_flags) {
+			return i;
+		}
+	}
+
+	// TODO: Warning message
+	return -1;
+}

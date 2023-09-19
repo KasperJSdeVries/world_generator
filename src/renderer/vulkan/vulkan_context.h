@@ -1,19 +1,22 @@
 #ifndef WORLD_GENERATOR_VULKAN_CONTEXT_H
 #define WORLD_GENERATOR_VULKAN_CONTEXT_H
 
+#include "types.h"
+
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 typedef struct vulkan_swapchain_support_info {
 	VkSurfaceCapabilitiesKHR capabilities;
-	u32 format_count;
-	VkSurfaceFormatKHR *formats;
-	u32 present_mode_count;
-	VkPresentModeKHR *present_modes;
+	u32                      format_count;
+	VkSurfaceFormatKHR      *formats;
+	u32                      present_mode_count;
+	VkPresentModeKHR        *present_modes;
 } vulkan_swapchain_support_info;
 
 typedef struct vulkan_device {
-	VkPhysicalDevice physical_device;
-	VkDevice logical_device;
+	VkPhysicalDevice              physical_device;
+	VkDevice                      logical_device;
 	vulkan_swapchain_support_info swapchain_support;
 
 	i32 graphics_queue_index;
@@ -26,21 +29,52 @@ typedef struct vulkan_device {
 	VkQueue present_queue;
 	VkQueue transfer_queue;
 
-	VkPhysicalDeviceProperties properties;
-	VkPhysicalDeviceFeatures features;
+	VkPhysicalDeviceProperties       properties;
+	VkPhysicalDeviceFeatures         features;
 	VkPhysicalDeviceMemoryProperties memory;
+
+	VkFormat depth_format;
 } vulkan_device;
 
+typedef struct vulkan_image {
+	VkImage        handle;
+	VkDeviceMemory memory;
+	VkImageView    view;
+	u32            width;
+	u32            height;
+} vulkan_image;
+
+typedef struct vulkan_swapchain {
+	VkSurfaceFormatKHR image_format;
+	u8                 max_frames_in_flight;
+	VkSwapchainKHR     handle;
+	u32                image_count;
+	VkImage           *images;
+	VkImageView       *views;
+
+	vulkan_image depth_attachment;
+} vulkan_swapchain;
+
 typedef struct vulkan_context {
-	VkInstance instance;
+	u32 framebuffer_width;
+	u32 framebuffer_height;
+
+	VkInstance   instance;
+	VkSurfaceKHR surface;
 
 #if defined(_DEBUG)
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
 
-	VkSurfaceKHR surface;
-
 	vulkan_device device;
+
+	vulkan_swapchain swapchain;
+	u32              image_index;
+	u32              current_frame;
+
+	b8 recreating_swapchain;
+
+	i32 (*find_memory_index)(struct vulkan_context *context, u32 type_filter, u32 property_flags);
 } vulkan_context;
 
 #endif // WORLD_GENERATOR_VULKAN_CONTEXT_H
