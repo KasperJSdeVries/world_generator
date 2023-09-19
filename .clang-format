@@ -51,16 +51,14 @@ AlignAfterOpenBracket: BlockIndent
 # This does not take into account any spacing, so it
 # will align these variables even if one of them
 # is suppppper long
-AlignConsecutiveAssignments:
-  Enabled: true
+AlignConsecutiveAssignments: Consecutive
 
 # Align declarations i.e
 #
 # int         aaaa = 12;
 # float       b = 23;
 # std::string ccc = "23";
-AlignConsecutiveDeclarations:
-  Enabled: true
+AlignConsecutiveDeclarations: Consecutive
 
 # Aligns escape newlines, if false puts them in the right
 # most column
