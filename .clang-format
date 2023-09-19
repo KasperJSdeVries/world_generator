@@ -265,7 +265,7 @@ IndentWidth: 4
 # Indent if a function definition or declaration is wrapped after the type.
 IndentWrappedFunctionNames: false
 
-InsertNewlineAtEOF: true
+#InsertNewlineAtEOF: true
 
 InsertTrailingCommas: Wrapped
 
